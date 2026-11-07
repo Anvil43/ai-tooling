@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Logging for unit tests. Logback picks this file over logback.xml when it is on the classpath,
+  so tests never write to the real log file in ~/Library/Logs/youtrack-mcp.
+  The ITs run the shaded jar in a separate process, which uses logback.xml, with LOG_DIR set
+  to a temporary directory.
+-->
+<configuration>
+    <!-- Don't print Logback's own startup status -->
+    <statusListener class="ch.qos.logback.core.status.NopStatusListener"/>
+
+    <appender name="STDERR" class="ch.qos.logback.core.ConsoleAppender">
+        <target>System.err</target>
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!--
+      INFO, as in logback.xml, so the logging tests see the same events as production. Many
+      tests cause warnings and errors on purpose, so this code's events are not printed;
+      the logging tests capture them with a ListAppender attached to the logger itself.
+    -->
+    <logger name="com.anvil43.youtrackmcp" level="INFO" additivity="false"/>
+
+    <!-- Library warnings still show in the test output -->
+    <root level="WARN">
+        <appender-ref ref="STDERR"/>
+    </root>
+</configuration>

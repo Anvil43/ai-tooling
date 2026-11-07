@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- Logback's own status/error messages go to stderr; stdout belongs to MCP -->
+    <statusListener class="ch.qos.logback.core.status.OnErrorConsoleStatusListener"/>
+
+    <!-- Override with -DLOG_DIR=... or the LOG_DIR env var; default is outside any repo -->
+    <property name="LOG_DIR" value="${LOG_DIR:-${user.home}/Library/Logs/youtrack-mcp}"/>
+    <property name="PATTERN" value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"/>
+
+    <appender name="STDERR" class="ch.qos.logback.core.ConsoleAppender">
+        <target>System.err</target>
+        <encoder>
+            <pattern>${PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="FILE" class="ch.qos.logback.core.FileAppender">
+        <file>${LOG_DIR}/youtrack-mcp.log</file>
+        <append>true</append>
+        <encoder>
+            <pattern>${PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <logger name="com.anvil43.youtrackmcp" level="INFO"/>
+    <!-- Set to DEBUG to see the SDK's protocol handling while learning it -->
+    <logger name="io.modelcontextprotocol" level="INFO"/>
+
+    <root level="WARN">
+        <appender-ref ref="STDERR"/>
+        <appender-ref ref="FILE"/>
+    </root>
+</configuration>

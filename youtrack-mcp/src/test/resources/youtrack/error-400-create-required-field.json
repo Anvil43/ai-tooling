@@ -1,0 +1,1 @@
+{"error":"Field required","error_description":"Test Field is required","error_field":"Test Field","error_rule_name":"@jetbrains/required-custom-fields-feature","error_issue_id":"3-35","error_issue_is_draft":false,"error_transitions":[],"error_original_command":"","error_project_custom_field_id":"233-0","error_type":"workflow","error_workflow_type":"require"}
