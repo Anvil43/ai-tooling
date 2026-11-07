@@ -18,7 +18,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
-/** Contract: design.md, "Write tools: create_issue contract" and "Errors". */
 class CreateIssueToolTest {
 
     private static final String PROJECT_REQUIRED =
@@ -43,7 +42,6 @@ class CreateIssueToolTest {
 
     @Test
     void descriptionSaysNotToPickAProject() {
-        // No mention of update_issue until that tool is registered (design.md).
         assertThat(tool.specification().tool().description()).isEqualTo(
                 "Creates a YouTrack issue and returns its ID. Takes a project key from list_projects "
                         + "(for example \"ABC\"), a one-line summary and an optional description in Markdown. "
@@ -69,8 +67,8 @@ class CreateIssueToolTest {
     @Test
     @SuppressWarnings("unchecked")
     void propertyDescriptionsSayWhatEachValueIs() {
-        // Aaron, 2026-11-05: what the value is, not the error text; the don't-guess rule stays
-        // in the tool description.
+        // Each says what the value is, not what errors mean; the don't-guess rule stays in the
+        // tool description.
         Map<String, Object> properties =
                 (Map<String, Object>) tool.specification().tool().inputSchema().get("properties");
 
@@ -239,7 +237,7 @@ class CreateIssueToolTest {
     @Test
     void nonStringDescriptionIsIgnoredAndTheIssueIsStillCreated() {
         // The SDK's schema check stops this before handle runs; if one gets through, the
-        // description is treated like a blank one (Aaron, 2026-11-05), not an internal error.
+        // description is treated like a blank one, not an internal error.
         CallToolResult result = tool.handle(Map.of("project", "DEMO", "summary", "Login fails on Safari", "description", 42));
 
         assertThat(isError(result)).as(text(result)).isFalse();
@@ -323,7 +321,7 @@ class CreateIssueToolTest {
 
     @Test
     void unavailableSaysTheIssueMayExistAndToSearchBeforeRetrying() {
-        // A failure after the POST was sent doesn't prove the issue wasn't created (design.md).
+        // A failure after the POST was sent doesn't prove the issue wasn't created.
         client.failingWith(new YouTrackUnavailableException("Could not reach YouTrack.", new IOException("reset")));
 
         CallToolResult result = tool.handle(Map.of("project", "DEMO", "summary", "Login fails on Safari"));

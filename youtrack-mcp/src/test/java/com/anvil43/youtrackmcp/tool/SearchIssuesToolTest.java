@@ -20,7 +20,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
-/** Contract: design.md, "search_issues contract", "Read tools: v1 decisions" and "Errors". */
 class SearchIssuesToolTest {
 
     private static final String HEADER_NOTE = " (fields without a value are left out):";

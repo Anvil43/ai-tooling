@@ -18,7 +18,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
-/** Contract: design.md, "Write tools: update_issue contract" and "Errors". */
 class UpdateIssueToolTest {
 
     private static final String ISSUE_ID_REQUIRED = "issueId is required. Pass an issue ID, for example \"ABC-123\".";
@@ -156,7 +155,7 @@ class UpdateIssueToolTest {
 
     @Test
     void stripsTheCommandBeforeCalling() {
-        // A command is an instruction, so outer whitespace is never meaningful (design.md).
+        // A command is an instruction, so outer whitespace is never meaningful.
         tool.handle(Map.of("issueId", "DEMO-13", "command", "  Priority Major Assignee me \n"));
 
         assertThat(client.calls()).containsExactly("updateIssue(\"DEMO-13\", \"Priority Major Assignee me\")");
@@ -241,7 +240,7 @@ class UpdateIssueToolTest {
             "YouTrack is unable to locate an Issue-type entity with the specified ID."})
     void rejectionCarriesYouTracksTextAndSaysNothingChanged(String detail) {
         // The captured texts, with a period where YouTrack leaves it out; an unknown issue
-        // arrives as a 400 like the others and isn't treated separately (Aaron, 2026-11-06).
+        // arrives as a 400 like the others and isn't treated separately.
         client.failingWith(new RequestRejectedException(detail));
 
         CallToolResult result = tool.handle(Map.of("issueId", "DEMO-13", "command", "State Bogus"));

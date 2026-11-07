@@ -19,7 +19,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
-/** Contract: design.md, "Write tools: add_comment contract" and "Errors". */
 class AddCommentToolTest {
 
     private static final String ISSUE_ID_REQUIRED = "issueId is required. Pass an issue ID, for example \"ABC-123\".";
@@ -40,7 +39,6 @@ class AddCommentToolTest {
 
     @Test
     void descriptionSaysWhatItTakesAndWhereIdsComeFrom() {
-        // No visibility sentence (Aaron, 2026-11-06).
         assertThat(tool.specification().tool().description()).isEqualTo(
                 "Adds a comment to a YouTrack issue. Takes an issue ID (for example \"ABC-123\") "
                         + "and the comment in Markdown. Use search_issues to find IDs.");
@@ -265,7 +263,7 @@ class AddCommentToolTest {
 
     @Test
     void unavailableSaysTheCommentMayExistAndToCheckBeforeRetrying() {
-        // A failure after the POST was sent doesn't prove the comment wasn't added (design.md).
+        // A failure after the POST was sent doesn't prove the comment wasn't added.
         client.failingWith(new YouTrackUnavailableException("Could not reach YouTrack.", new IOException("reset")));
 
         CallToolResult result = tool.handle(Map.of("issueId", "DEMO-13", "comment", "Fixed in the 2.3 build"));

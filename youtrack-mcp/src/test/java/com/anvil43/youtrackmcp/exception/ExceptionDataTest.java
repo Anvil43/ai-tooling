@@ -7,8 +7,8 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 /**
- * Contract: design.md, "Errors", message format. Data the tools need lives in accessors; the
- * message is a sentence built from it (checked by key phrase, not exact wording).
+ * Data the tools need lives in accessors; the message is a sentence built from it (checked by key
+ * phrase, not exact wording).
  */
 class ExceptionDataTest {
 

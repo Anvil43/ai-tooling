@@ -64,8 +64,8 @@ exits at start-up.
 
 ### Getting a token
 
-Create a permanent token in YouTrack under your profile's **Account Security** settings, with
-the YouTrack scope. The server can see and change exactly what the token's user can, so prefer
+In YouTrack, open your avatar → **Profile** → **Account Security**, and under **Tokens** create a
+new token with the YouTrack scope. Copy it straight away: YouTrack shows it only once. The server can see and change exactly what the token's user can, so prefer
 least privilege: ideally a dedicated YouTrack user with access only to the projects the
 assistant should work in.
 

@@ -19,7 +19,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
-/** Contract: design.md, "list_projects contract" and "Errors". */
 class ListProjectsToolTest {
 
     private static final Project YTMCP = new Project("YTMCP", "YouTrack MCP server");

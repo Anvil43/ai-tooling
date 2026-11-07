@@ -22,7 +22,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
-/** Contract: design.md, "get_issue contract", "Read tools: v1 decisions" and "Errors". */
 class GetIssueToolTest {
 
     private static final String ID_REQUIRED = "issueId is required. Pass an issue ID, for example \"ABC-123\".";

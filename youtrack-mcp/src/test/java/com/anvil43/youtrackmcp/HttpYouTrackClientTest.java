@@ -54,9 +54,9 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.slf4j.LoggerFactory;
 
 /**
- * Contract: design.md, "HttpYouTrackClient contract", "Errors" and "YouTrack quirks". Fixtures in
- * src/test/resources/youtrack are sanitized copies of real responses, except issue-value-shapes.json,
- * which is hand-built from the OpenAPI spec for value shapes the captured project doesn't have.
+ * Fixtures in src/test/resources/youtrack are sanitized copies of real YouTrack responses, except
+ * issue-value-shapes.json, which is hand-built from YouTrack's OpenAPI spec for value shapes the
+ * captured project doesn't have.
  */
 class HttpYouTrackClientTest {
 
@@ -448,7 +448,7 @@ class HttpYouTrackClientTest {
 
             client.addComment("DEMO-13", "Fixed in the 2.3 build");
 
-            // The argument is "comment"; YouTrack's field is "text" (design.md).
+            // The tool argument is "comment"; YouTrack's field is "text".
             youTrack.verify(postRequestedFor(urlPathEqualTo("/api/issues/DEMO-13/comments"))
                     .withHeader("Authorization", equalTo("Bearer " + TOKEN))
                     .withHeader("Accept", equalTo("application/json"))
@@ -535,7 +535,7 @@ class HttpYouTrackClientTest {
 
             client.updateIssue("DEMO-13", "State In Progress Priority Major Assignee Unassigned");
 
-            // The argument is "command"; YouTrack's field is "query" (design.md).
+            // The tool argument is "command"; YouTrack's field is "query".
             youTrack.verify(postRequestedFor(urlPathEqualTo("/api/commands"))
                     .withHeader("Authorization", equalTo("Bearer " + TOKEN))
                     .withHeader("Accept", equalTo("application/json"))
@@ -601,7 +601,7 @@ class HttpYouTrackClientTest {
 
         @Test
         void decodesHtmlEntitiesInChanges() {
-            // Synthetic: YouTrack escapes values it echoes back (captured in an error, design.md).
+            // Synthetic: YouTrack escapes values it echoes back (seen in a captured error).
             stubUpdate(okJson(commandResponse(
                     "Set Summary <span class=\\\"bold\\\">R&amp;D &lt;draft&gt; &quot;v2&quot; it&#39;s</span>")));
 
@@ -781,7 +781,7 @@ class HttpYouTrackClientTest {
 
         @Test
         void unknownProjectIsARejectionLikeAnyOther400() {
-            // design.md: every 400 from create is one rejection; the client doesn't read YouTrack's wording.
+            // Every 400 from create is one rejection; the client doesn't read YouTrack's wording.
             stubCreate(errorJson(400, fixture("error-400-create-unknown-project.json")));
 
             Throwable thrown = catchThrowable(() -> client.createIssue("NOPE", "Login fails on Safari", null));
@@ -918,7 +918,7 @@ class HttpYouTrackClientTest {
 
         @Test
         void unknownIssueOnUpdateIsARejectionLikeAnyOther400() {
-            // Captured: YouTrack answers 400 here, not 404, and the wording isn't matched (Aaron, 2026-11-06).
+            // Captured: YouTrack answers 400 here, not 404, and the wording isn't matched.
             stubUpdate(errorJson(400, fixture("error-400-command-unknown-issue.json")));
 
             Throwable thrown = catchThrowable(() -> client.updateIssue("DEMO-99999", "State In Progress"));
@@ -940,7 +940,7 @@ class HttpYouTrackClientTest {
 
         @Test
         void invalidTagNameRejectionUsesOnlyTheTopLevelDescription() {
-            // Captured: the specific reason is in error_children, written for developers (design.md).
+            // Captured: the specific reason is in error_children, written for developers.
             stubUpdate(errorJson(400, fixture("error-400-command-tag-name.json")));
 
             Throwable thrown = catchThrowable(() -> client.updateIssue("DEMO-13", "tag R&R"));
@@ -1347,7 +1347,7 @@ class HttpYouTrackClientTest {
         @Test
         void rejectedUpdateLogsOneWarningNamingTheIssueButNotYouTracksDetail() {
             // YouTrack's detail echoes values from the command, which can name people, so it
-            // stays out of the log on this endpoint (design.md).
+            // stays out of the log on this endpoint.
             stubUpdate(errorJson(400, "{\"error\":\"Bad Request\",\"error_description\":\"Assignee expected: Secret Person\"}"));
 
             catchThrowable(() -> client.updateIssue("DEMO-13", "Assignee Secret Person"));
