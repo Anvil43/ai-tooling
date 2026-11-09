@@ -42,7 +42,7 @@ public class HttpYouTrackClient implements YouTrackClient {
     private static final JsonMapper JSON_MAPPER = new JsonMapper();
 
     private static final String URI_FIXED_SEARCH_FIELDS = "idReadable,summary,customFields(name,value(name,login,fullName,presentation,text))";
-    private static final String URI_EXTRA_ISSUE_FIELDS = ",description,created,updated,resolved,comments(text,created,author(login,fullName))";
+    private static final String URI_EXTRA_ISSUE_FIELDS = ",description,created,updated,resolved,comments(text,created,author(login,fullName)),links(direction,linkType(name,sourceToTarget,targetToSource),issues(idReadable,summary))";
     private static final String URI_LIST_PROJECTS = "/api/admin/projects?fields=shortName,name,archived&$top=500";
     private static final String URI_SEARCH_ISSUES = "/api/issues?query=%s&fields=%s&$top=%d";
     private static final String URI_GET_ISSUE = "/api/issues/%s?fields=%s";

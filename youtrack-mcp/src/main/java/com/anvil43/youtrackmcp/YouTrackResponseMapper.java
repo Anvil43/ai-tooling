@@ -6,6 +6,7 @@ import com.anvil43.youtrackmcp.model.CreatedIssue;
 import com.anvil43.youtrackmcp.model.CustomField;
 import com.anvil43.youtrackmcp.model.Issue;
 import com.anvil43.youtrackmcp.model.IssueComment;
+import com.anvil43.youtrackmcp.model.IssueLink;
 import com.anvil43.youtrackmcp.model.IssueSummary;
 import com.anvil43.youtrackmcp.model.Project;
 import com.anvil43.youtrackmcp.model.UpdatedIssue;
@@ -52,6 +53,14 @@ final class YouTrackResponseMapper {
     private static final String ID = "id";
     private static final String ISSUES = "issues";
     private static final String COMMANDS = "commands";
+    private static final String LINKS = "links";
+    private static final String DIRECTION = "direction";
+    private static final String INWARD = "INWARD";
+    private static final String OUTWARD = "OUTWARD";
+    private static final String BOTH = "BOTH";
+    private static final String SOURCE_TO_TARGET = "sourceToTarget";
+    private static final String TARGET_TO_SOURCE = "targetToSource";
+    private static final String LINK_TYPE = "linkType";
 
     private static final JsonMapper JSON_MAPPER = new JsonMapper();
 
@@ -104,10 +113,10 @@ final class YouTrackResponseMapper {
                 requiredInstant(rootNode, UPDATED),
                 nullableInstant(rootNode, RESOLVED),
                 extractCustomFields(rootNode.path(CUSTOM_FIELDS)),
-                extractIssueComments(rootNode.path(COMMENTS))
+                extractIssueComments(rootNode.path(COMMENTS)),
+                extractIssueLinks(rootNode.path(LINKS))
         ));
     }
-
 
     static CreatedIssue createdIssue(String responseBody, String createdIssueUrl) {
         return read(responseBody, rootNode -> {
@@ -290,6 +299,58 @@ final class YouTrackResponseMapper {
         description = description.replace("&#39;", "'");
         description = description.replace("&amp;", "&");
         return description;
+    }
+
+    private static List<IssueLink> extractIssueLinks(JsonNode linksNode) {
+        List<IssueLink> issueLinks = new ArrayList<>();
+        for (JsonNode linkNode : requireArray(linksNode, LINKS)) {
+            if (!linkNode.isObject()) {
+                throw new UnexpectedResponseException("Issue link was not an object.");
+            }
+            issueLinks.addAll(handleLinkNode(linkNode));
+        }
+        return issueLinks;
+    }
+
+    private static List<IssueLink> handleLinkNode(JsonNode linkNode) {
+        List<IssueLink> issueLinks = new ArrayList<>();
+        String relation = extractRelationValueFromJsonNode(linkNode);
+        JsonNode linkedIssues = linkNode.path(ISSUES);
+        for (JsonNode issueLink : requireArray(linkedIssues, ISSUES)) {
+            String idReadable = issueLink.path(ID_READABLE).stringValue();
+            if (null == idReadable) {
+                throw new UnexpectedResponseException("Id readable of a linked issue may not be null.");
+            }
+            issueLinks.add(new IssueLink(
+                relation,
+                idReadable,
+                issueLink.path(SUMMARY).stringValue()
+                ));
+        }
+        return issueLinks;
+    }
+
+    private static String extractRelationValueFromJsonNode(JsonNode linkNode) {
+        JsonNode directionNode = linkNode.path(DIRECTION);
+        if (directionNode.isMissingNode()) {
+            throw new UnexpectedResponseException("Missing required property \"direction\".");
+        }
+        String direction = directionNode.asString();
+        String relation;
+        JsonNode linkTypeNode = linkNode.path(LINK_TYPE);
+        if (direction.equals(OUTWARD) || direction.equals(BOTH)) {
+            relation = linkTypeNode.path(SOURCE_TO_TARGET).stringValue();
+        }
+        else if (direction.equals(INWARD)) {
+            relation = linkTypeNode.path(TARGET_TO_SOURCE).stringValue();
+        }
+        else {
+            throw new UnexpectedResponseException("Unrecognized direction: " + direction);
+        }
+        if ((relation == null) || (relation.isBlank())) {
+            relation = linkTypeNode.path(NAME).stringValue();
+        }
+        return relation;
     }
 
 }

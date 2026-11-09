@@ -9,6 +9,7 @@ import com.anvil43.youtrackmcp.exception.YouTrackUnavailableException;
 import com.anvil43.youtrackmcp.model.CustomField;
 import com.anvil43.youtrackmcp.model.Issue;
 import com.anvil43.youtrackmcp.model.IssueComment;
+import com.anvil43.youtrackmcp.model.IssueLink;
 import com.anvil43.youtrackmcp.model.User;
 import io.modelcontextprotocol.spec.McpSchema.CallToolRequest;
 import io.modelcontextprotocol.spec.McpSchema.CallToolResult;
@@ -52,7 +53,7 @@ class GetIssueToolTest {
     void descriptionQuotesTheExampleId() {
         assertThat(tool.specification().tool().description()).isEqualTo(
                 "Returns one YouTrack issue by ID (for example \"ABC-123\"): its dates, every custom "
-                        + "field, the description and all comments. Use search_issues to find IDs.");
+                        + "field, its links to other issues, the description and all comments. Use search_issues to find IDs.");
     }
 
     @Test
@@ -151,7 +152,10 @@ class GetIssueToolTest {
     void rendersTheFullLayout() {
         client.withIssue(issue("Steps:\n1. Open Safari\n2. Log in", List.of(
                 new IssueComment("Reproduced on 17.1.", Instant.parse("2026-10-02T10:00:00Z"), JANE),
-                new IssueComment("Fixed in\nthe login form.", Instant.parse("2026-10-03T08:15:00Z"), JOHN))));
+                new IssueComment("Fixed in\nthe login form.", Instant.parse("2026-10-03T08:15:00Z"), JOHN)),
+                List.of(
+                        new IssueLink("subtask of", "DEMO-1", "Safari support"),
+                        new IssueLink("relates to", "DEMO-30", "Login page redesign"))));
 
         CallToolResult result = tool.handle(Map.of("issueId", "DEMO-12"));
 
@@ -164,6 +168,10 @@ class GetIssueToolTest {
                 State: Fixed
                 Priority: Major
                 Unset: Assignee, Fix versions
+
+                Links (2):
+                subtask of DEMO-1: Safari support
+                relates to DEMO-30: Login page redesign
 
                 Description:
                 Steps:
@@ -182,7 +190,7 @@ class GetIssueToolTest {
     @Test
     void openIssueHasNoResolvedLine() {
         client.withIssue(new Issue("DEMO-12", "Login fails on Safari", "Some text", CREATED, UPDATED, null,
-                List.of(new CustomField("State", "Open")), List.of()));
+                List.of(new CustomField("State", "Open")), List.of(), List.of()));
 
         assertThat(text(tool.handle(Map.of("issueId", "DEMO-12")))).startsWith("""
                 DEMO-12: Login fails on Safari
@@ -196,7 +204,7 @@ class GetIssueToolTest {
     @Test
     void noUnsetLineWhenEveryFieldIsSet() {
         client.withIssue(new Issue("DEMO-12", "Login fails on Safari", "Some text", CREATED, UPDATED, null,
-                List.of(new CustomField("State", "Open")), List.of()));
+                List.of(new CustomField("State", "Open")), List.of(), List.of()));
 
         assertThat(text(tool.handle(Map.of("issueId", "DEMO-12")))).doesNotContain("Unset:");
     }
@@ -207,7 +215,7 @@ class GetIssueToolTest {
                 new CustomField("Notes", ""),
                 new CustomField("State", "Open"),
                 new CustomField("Comment", "   "),
-                new CustomField("Assignee", null)), List.of()));
+                new CustomField("Assignee", null)), List.of(), List.of()));
 
         assertThat(text(tool.handle(Map.of("issueId", "DEMO-12")))).startsWith("""
                 DEMO-12: Blank values
@@ -221,12 +229,14 @@ class GetIssueToolTest {
 
     @Test
     void issueWithNoFieldsHasJustTheDates() {
-        client.withIssue(new Issue("DEMO-12", "Bare", "Some text", CREATED, UPDATED, null, List.of(), List.of()));
+        client.withIssue(new Issue("DEMO-12", "Bare", "Some text", CREATED, UPDATED, null, List.of(), List.of(), List.of()));
 
         assertThat(text(tool.handle(Map.of("issueId", "DEMO-12")))).isEqualTo("""
                 DEMO-12: Bare
                 Created: 2026-10-01T09:30:00Z
                 Updated: 2026-10-28T14:02:11Z
+
+                Links: none.
 
                 Description:
                 Some text
@@ -236,7 +246,7 @@ class GetIssueToolTest {
 
     @Test
     void nullSummaryIsShownAsEmpty() {
-        client.withIssue(new Issue("DEMO-12", null, "Some text", CREATED, UPDATED, null, List.of(), List.of()));
+        client.withIssue(new Issue("DEMO-12", null, "Some text", CREATED, UPDATED, null, List.of(), List.of(), List.of()));
 
         assertThat(text(tool.handle(Map.of("issueId", "DEMO-12")))).startsWith("""
                 DEMO-12:\s
@@ -249,7 +259,7 @@ class GetIssueToolTest {
         client.withIssue(new Issue("DEMO-12", "Dates", "Some text",
                 Instant.parse("2026-10-01T09:30:00.123Z"), Instant.parse("2026-10-28T14:02:11.999Z"),
                 Instant.parse("2026-10-29T00:00:00.500Z"), List.of(),
-                List.of(new IssueComment("Hi", Instant.parse("2026-10-02T10:00:00.001Z"), JANE))));
+                List.of(new IssueComment("Hi", Instant.parse("2026-10-02T10:00:00.001Z"), JANE)), List.of()));
 
         assertThat(text(tool.handle(Map.of("issueId", "DEMO-12"))))
                 .contains("\nCreated: 2026-10-01T09:30:00Z\n")
@@ -331,7 +341,8 @@ class GetIssueToolTest {
     void flattensLineBreaksInSingleLineSlots() {
         client.withIssue(new Issue("DEMO-12", "Two\nline\r\nsummary", "Some text", CREATED, UPDATED, null,
                 List.of(new CustomField("Notes", "first\r\nsecond"), new CustomField("Odd\rname", null)),
-                List.of(new IssueComment("Hi", CREATED, new User("jdoe", "Jane\nDoe")))));
+                List.of(new IssueComment("Hi", CREATED, new User("jdoe", "Jane\nDoe"))),
+                List.of(new IssueLink("subtask\nof", "DEMO-1", "Safari\r\nsupport"))));
 
         assertThat(text(tool.handle(Map.of("issueId", "DEMO-12")))).isEqualTo("""
                 DEMO-12: Two line summary
@@ -340,12 +351,59 @@ class GetIssueToolTest {
                 Notes: first second
                 Unset: Odd name
 
+                Links (1):
+                subtask of DEMO-1: Safari support
+
                 Description:
                 Some text
 
                 Comments (1):
                 Jane Doe (jdoe), 2026-10-01T09:30:00Z:
                 Hi""");
+    }
+
+    @Test
+    void noLinksSaysNone() {
+        client.withIssue(issue("Some text", List.of()));
+
+        assertThat(text(tool.handle(Map.of("issueId", "DEMO-12"))))
+                .contains("\nUnset: Assignee, Fix versions\n\nLinks: none.\n\nDescription:\n");
+    }
+
+    @Test
+    void usesTheSingularForOneLink() {
+        client.withIssue(issue("Some text", List.of(), List.of(new IssueLink("subtask of", "DEMO-1", "Safari support"))));
+
+        assertThat(text(tool.handle(Map.of("issueId", "DEMO-12"))))
+                .contains("\n\nLinks (1):\nsubtask of DEMO-1: Safari support\n\nDescription:\n");
+    }
+
+    @Test
+    void listsLinksInTheClientsOrder() {
+        // The client passes YouTrack's order through; the tool doesn't sort by relation or ID.
+        client.withIssue(issue("Some text", List.of(), List.of(
+                new IssueLink("relates to", "DEMO-40", "Later"),
+                new IssueLink("parent for", "DEMO-9", "Child nine"),
+                new IssueLink("parent for", "DEMO-10", "Child ten"),
+                new IssueLink("depends on", "DEMO-2", "Earlier"))));
+
+        assertThat(text(tool.handle(Map.of("issueId", "DEMO-12")))).contains("""
+                Links (4):
+                relates to DEMO-40: Later
+                parent for DEMO-9: Child nine
+                parent for DEMO-10: Child ten
+                depends on DEMO-2: Earlier
+
+                """);
+    }
+
+    @Test
+    void nullLinkedSummaryIsShownAsEmpty() {
+        client.withIssue(issue("Some text", List.of(), List.of(new IssueLink("relates to", "DEMO-40", null))));
+
+        assertThat(text(tool.handle(Map.of("issueId", "DEMO-12"))))
+                .contains("\nrelates to DEMO-40: \n")
+                .doesNotContain("null");
     }
 
     @Test
@@ -405,10 +463,15 @@ class GetIssueToolTest {
 
     // --- helpers -------------------------------------------------------------------------
 
-    /** DEMO-12, resolved, with {@link #FIELDS} and the given description and comments. */
+    /** DEMO-12, resolved, with {@link #FIELDS}, the given description and comments, and no links. */
     private static Issue issue(String description, List<IssueComment> comments) {
+        return issue(description, comments, List.of());
+    }
+
+    /** DEMO-12, resolved, with {@link #FIELDS} and the given description, comments and links. */
+    private static Issue issue(String description, List<IssueComment> comments, List<IssueLink> links) {
         return new Issue("DEMO-12", "Login fails on Safari", description, CREATED, UPDATED, RESOLVED,
-                FIELDS, comments);
+                FIELDS, comments, links);
     }
 
     private static boolean isError(CallToolResult result) {

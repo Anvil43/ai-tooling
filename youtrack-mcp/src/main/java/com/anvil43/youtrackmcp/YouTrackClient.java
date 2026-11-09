@@ -40,7 +40,12 @@ public interface YouTrackClient {
     List<IssueSummary> searchIssues(String query, int limit);
 
     /**
-     * Fetches one issue with its description, dates, custom fields and comments.
+     * Fetches one issue with its description, dates, custom fields, comments and links to other
+     * issues.
+     *
+     * <p>Links come one per linked issue, in YouTrack's order. Each carries the relation as
+     * YouTrack phrases it from this issue's side, such as {@code subtask of} or
+     * {@code relates to}, falling back to the link type's name when that phrase is blank.
      *
      * @param issueId a readable issue ID such as {@code ABC-123}
      * @return the issue, never null

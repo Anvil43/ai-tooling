@@ -44,8 +44,8 @@ class UpdateIssueToolTest {
     void descriptionGivesExamplesAndSaysNotToGuessValues() {
         assertThat(tool.specification().tool().description()).isEqualTo(
                 "Changes a YouTrack issue by applying a command, the same text as in YouTrack's command "
-                        + "dialog: for example \"State In Progress\", \"Assignee me\", \"Priority Major\" or "
-                        + "\"tag Release\". One command can set several fields. Use the field names and values "
+                        + "dialog: for example \"State In Progress\", \"Assignee me\", \"Priority Major\", "
+                        + "\"tag Release\" or \"subtask of ABC-1\". One command can set several fields. Use the field names and values "
                         + "that get_issue shows; if you're not sure a value exists, ask the user rather than "
                         + "guessing. Use search_issues to find IDs.");
     }

@@ -5,6 +5,7 @@ import com.anvil43.youtrackmcp.exception.YouTrackException;
 import com.anvil43.youtrackmcp.model.CustomField;
 import com.anvil43.youtrackmcp.model.Issue;
 import com.anvil43.youtrackmcp.model.IssueComment;
+import com.anvil43.youtrackmcp.model.IssueLink;
 import com.anvil43.youtrackmcp.model.User;
 import io.modelcontextprotocol.json.McpJsonDefaults;
 import io.modelcontextprotocol.server.McpServerFeatures.SyncToolSpecification;
@@ -38,7 +39,7 @@ public class GetIssueTool {
         }
         """;
     private static final String DESCRIPTION = """
-        Returns one YouTrack issue by ID (for example "ABC-123"): its dates, every custom field, the description and all comments. Use search_issues to find IDs.""";
+        Returns one YouTrack issue by ID (for example "ABC-123"): its dates, every custom field, its links to other issues, the description and all comments. Use search_issues to find IDs.""";
 
     private static final Logger LOGGER = LoggerFactory.getLogger(GetIssueTool.class);
 
@@ -71,6 +72,8 @@ public class GetIssueTool {
                     + ((null == issue.summary()) ? "" : issue.summary())));
             handleIssueTimestamps(issue, output);
             handleCustomFields(issue, output);
+            output.add("");
+            handleIssueLinks(issue, output);
             output.add("");
             handleIssueDescription(issue, output);
             output.add("");
@@ -117,6 +120,24 @@ public class GetIssueTool {
         if (!unsetFields.isEmpty()) {
             output.add(ToolResults.flattenLineBreaks("Unset: " + String.join(", ", unsetFields)));
         }
+    }
+
+    private void handleIssueLinks(Issue issue, List<String> output) {
+        if (!issue.links().isEmpty()) {
+            output.add("Links (" + issue.links().size() + "):");
+            for (IssueLink link : issue.links()) {
+                handleLink(link, output);
+            }
+        }
+        else {
+            output.add("Links: none.");
+        }
+    }
+
+    private void handleLink(IssueLink issueLink, List<String> output) {
+        String rawIssueLine = issueLink.relation() + " " + issueLink.issueId() + ": ";
+        rawIssueLine = rawIssueLine + ((null == issueLink.summary()) ? "" : issueLink.summary());
+        output.add(ToolResults.flattenLineBreaks(rawIssueLine));
     }
 
     private void handleIssueComments(Issue issue, List<String> output) {

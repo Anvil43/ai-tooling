@@ -14,7 +14,7 @@ logs.
 |---|---|---|
 | `list_projects` | Lists the projects the token can see (archived ones left out), with their keys. | read |
 | `search_issues` | Runs a YouTrack search query and returns up to 50 issues, one line each: ID, summary and every custom field that's set. | read |
-| `get_issue` | Returns one issue in full: dates, custom fields, description and comments. | read |
+| `get_issue` | Returns one issue in full: dates, custom fields, links to other issues (such as `subtask of ABC-1`), description and comments. | read |
 | `create_issue` | Creates an issue from a project key, a one-line summary and an optional Markdown description. | write |
 | `add_comment` | Adds a Markdown comment to an issue. | write |
 | `update_issue` | Applies a YouTrack command, the same text as in YouTrack's command dialog, such as `State In Progress Assignee me`. Lists what changed. | write |

@@ -11,6 +11,7 @@ public record Issue(
         Instant updated,
         Instant resolved,
         List<CustomField> customFields,
-        List<IssueComment> issueComments
+        List<IssueComment> issueComments,
+        List<IssueLink> links
 ) {
 }

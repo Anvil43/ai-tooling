@@ -30,6 +30,7 @@ import com.anvil43.youtrackmcp.model.CreatedIssue;
 import com.anvil43.youtrackmcp.model.CustomField;
 import com.anvil43.youtrackmcp.model.Issue;
 import com.anvil43.youtrackmcp.model.IssueComment;
+import com.anvil43.youtrackmcp.model.IssueLink;
 import com.anvil43.youtrackmcp.model.IssueSummary;
 import com.anvil43.youtrackmcp.model.Project;
 import com.anvil43.youtrackmcp.model.UpdatedIssue;
@@ -69,7 +70,10 @@ class HttpYouTrackClientTest {
     private static final String SEARCH_FIELDS =
             "idReadable,summary,customFields(name,value(name,login,fullName,presentation,text))";
     private static final String ISSUE_FIELDS = SEARCH_FIELDS
-            + ",description,created,updated,resolved,comments(text,created,author(login,fullName))";
+            + ",description,created,updated,resolved,comments(text,created,author(login,fullName))"
+            + ",links(direction,linkType(name,sourceToTarget,targetToSource),issues(idReadable,summary))";
+    private static final String RELATES =
+            "{\"name\":\"Relates\",\"sourceToTarget\":\"relates to\",\"targetToSource\":\"\",\"$type\":\"IssueLinkType\"}";
 
     private HttpYouTrackClient client;
     private ListAppender<ILoggingEvent> log;
@@ -268,7 +272,13 @@ class HttpYouTrackClientTest {
                     List.of(new IssueComment(
                             "Sample comment.",
                             Instant.ofEpochMilli(1793308356048L),
-                            new User("jdoe", "Jane Doe")))));
+                            new User("jdoe", "Jane Doe"))),
+                    // YouTrack's order, link types as returned and issues as listed: not by ID.
+                    List.of(
+                            new IssueLink("relates to", "DEMO-4", "Sample issue 4"),
+                            new IssueLink("parent for", "DEMO-3", "Sample issue 3"),
+                            new IssueLink("parent for", "DEMO-2", "Sample issue 2"),
+                            new IssueLink("subtask of", "DEMO-9", "Sample issue 9"))));
         }
 
         @ParameterizedTest
@@ -309,7 +319,8 @@ class HttpYouTrackClientTest {
         }
 
         @Test
-        void unresolvedIssueWithoutDescriptionOrComments() {
+        void unresolvedIssueWithoutDescriptionCommentsOrLinks() {
+            // No links still means one entry per link type and direction, each with no issues.
             youTrack.stubFor(get(urlPathEqualTo("/api/issues/DEMO-7")).willReturn(okJson(fixture("issue-value-shapes.json"))));
 
             Issue issue = client.getIssue("DEMO-7");
@@ -317,6 +328,86 @@ class HttpYouTrackClientTest {
             assertThat(issue.resolved()).isNull();
             assertThat(issue.description()).isNull();
             assertThat(issue.issueComments()).isEmpty();
+            assertThat(issue.links()).isEmpty();
+        }
+
+        @ParameterizedTest
+        @CsvSource(delimiter = '|', value = {
+                "OUTWARD | is required for",
+                "INWARD  | depends on",
+                "BOTH    | is required for"})
+        void eachDirectionTakesItsPhrase(String direction, String relation) {
+            stubIssueWithLinks("[" + link(direction, "Depend", "\"is required for\"", "\"depends on\"",
+                    linkedIssue("DEMO-2", "\"Other\"")) + "]");
+
+            assertThat(client.getIssue("DEMO-7").links()).containsExactly(new IssueLink(relation, "DEMO-2", "Other"));
+        }
+
+        @ParameterizedTest
+        @ValueSource(strings = {"\"\"", "\"   \"", "null"})
+        void blankPhraseFallsBackToTheLinkTypeName(String phrase) {
+            // Relates has an empty targetToSource; a custom type could leave the phrase it uses blank.
+            stubIssueWithLinks("["
+                    + link("OUTWARD", "Blocks", phrase, "\"blocked by\"", linkedIssue("DEMO-2", "\"Other\"")) + ","
+                    + link("INWARD", "Blocks", "\"blocks\"", phrase, linkedIssue("DEMO-3", "\"Another\"")) + "]");
+
+            assertThat(client.getIssue("DEMO-7").links()).containsExactly(
+                    new IssueLink("Blocks", "DEMO-2", "Other"),
+                    new IssueLink("Blocks", "DEMO-3", "Another"));
+        }
+
+        @Test
+        void nullLinkedSummaryIsKept() {
+            stubIssueWithLinks("[" + link("BOTH", "Relates", "\"relates to\"", "\"\"", linkedIssue("DEMO-2", "null")) + "]");
+
+            assertThat(client.getIssue("DEMO-7").links()).containsExactly(new IssueLink("relates to", "DEMO-2", null));
+        }
+
+        @Test
+        void severalIssuesInSeveralEntriesKeepYouTracksOrder() {
+            // Entries in the order returned, issues in the order listed in each, an empty entry
+            // in between contributing nothing; neither is sorted by relation or ID.
+            stubIssueWithLinks("["
+                    + link("OUTWARD", "Subtask", "\"parent for\"", "\"subtask of\"",
+                            linkedIssue("DEMO-30", "\"Third\"") + "," + linkedIssue("DEMO-4", "\"Fourth\"") + ","
+                                    + linkedIssue("DEMO-12", "\"Twelfth\"")) + ","
+                    + link("INWARD", "Depend", "\"is required for\"", "\"depends on\"", "") + ","
+                    + link("BOTH", "Relates", "\"relates to\"", "\"\"",
+                            linkedIssue("DEMO-9", "\"Ninth\"") + "," + linkedIssue("DEMO-1", "\"First\"")) + "]");
+
+            assertThat(client.getIssue("DEMO-7").links()).containsExactly(
+                    new IssueLink("parent for", "DEMO-30", "Third"),
+                    new IssueLink("parent for", "DEMO-4", "Fourth"),
+                    new IssueLink("parent for", "DEMO-12", "Twelfth"),
+                    new IssueLink("relates to", "DEMO-9", "Ninth"),
+                    new IssueLink("relates to", "DEMO-1", "First"));
+        }
+
+        @Test
+        void missingLinksKeyIsUnavailable() {
+            // YouTrack always sends links when asked, even for an issue with none.
+            String fixture = fixture("issue-value-shapes.json");
+            String withoutLinks = fixture.substring(0, fixture.indexOf(",\"links\":")) + ",\"$type\":\"Issue\"}";
+            youTrack.stubFor(get(urlPathEqualTo("/api/issues/DEMO-7")).willReturn(okJson(withoutLinks)));
+
+            assertThatThrownBy(() -> client.getIssue("DEMO-7")).isInstanceOf(YouTrackUnavailableException.class);
+        }
+
+        @ParameterizedTest
+        @ValueSource(strings = {
+                "{}",                                                                             // not an array
+                "[\"relates to DEMO-2\"]",                                                        // entry not an object
+                "[{\"direction\":\"SIDEWAYS\",\"linkType\":" + RELATES + ",\"issues\":[]}]",      // unknown direction
+                "[{\"direction\":\"\",\"linkType\":" + RELATES + ",\"issues\":[]}]",              // empty direction
+                "[{\"linkType\":" + RELATES + ",\"issues\":[]}]",                                 // no direction
+                "[{\"direction\":\"BOTH\",\"issues\":[]}]",                                       // no linkType
+                "[{\"direction\":\"BOTH\",\"linkType\":" + RELATES + "}]",                        // no issues
+                "[{\"direction\":\"BOTH\",\"linkType\":" + RELATES + ",\"issues\":[{\"summary\":\"No ID\"}]}]",  // no ID
+                "[{\"direction\":\"BOTH\",\"linkType\":" + RELATES + ",\"issues\":[{\"summary\":\"Null ID\",\"idReadable\":null}]}]"}) // null ID
+        void malformedLinksAreUnavailable(String links) {
+            stubIssueWithLinks(links);
+
+            assertThatThrownBy(() -> client.getIssue("DEMO-7")).isInstanceOf(YouTrackUnavailableException.class);
         }
 
         @ParameterizedTest
@@ -1409,6 +1500,25 @@ class HttpYouTrackClientTest {
         return "{\"commands\":[{\"delete\":false,\"error\":false,\"description\":\"" + description
                 + "\",\"$type\":\"ParsedCommand\"}],\"issues\":[{\"idReadable\":\"DEMO-13\",\"$type\":\"Issue\"}],"
                 + "\"query\":\"State In Progress\"}";
+    }
+
+    /** Stubs DEMO-7 (issue-value-shapes.json) with its links array replaced by {@code links}. */
+    private static void stubIssueWithLinks(String links) {
+        String fixture = fixture("issue-value-shapes.json");
+        String body = fixture.substring(0, fixture.indexOf(",\"links\":")) + ",\"links\":" + links + ",\"$type\":\"Issue\"}";
+        youTrack.stubFor(get(urlPathEqualTo("/api/issues/DEMO-7")).willReturn(okJson(body)));
+    }
+
+    /** One links entry; the phrases are JSON values, so pass {@code "\"text\""} or {@code "null"}. */
+    private static String link(String direction, String name, String sourceToTarget, String targetToSource, String issues) {
+        return "{\"issues\":[" + issues + "],\"linkType\":{\"name\":\"" + name + "\",\"sourceToTarget\":" + sourceToTarget
+                + ",\"targetToSource\":" + targetToSource + ",\"$type\":\"IssueLinkType\"},\"direction\":\"" + direction
+                + "\",\"$type\":\"IssueLink\"}";
+    }
+
+    /** One linked issue; the summary is a JSON value, so pass {@code "\"text\""} or {@code "null"}. */
+    private static String linkedIssue(String issueId, String summary) {
+        return "{\"summary\":" + summary + ",\"idReadable\":\"" + issueId + "\",\"$type\":\"Issue\"}";
     }
 
     private static com.github.tomakehurst.wiremock.client.ResponseDefinitionBuilder errorJson(int status, String body) {
