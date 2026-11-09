@@ -10,6 +10,7 @@ import com.anvil43.youtrackmcp.model.IssueLink;
 import com.anvil43.youtrackmcp.model.IssueSummary;
 import com.anvil43.youtrackmcp.model.Project;
 import com.anvil43.youtrackmcp.model.UpdatedIssue;
+import com.anvil43.youtrackmcp.model.UpdatedText;
 import com.anvil43.youtrackmcp.model.User;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
@@ -150,6 +151,16 @@ final class YouTrackResponseMapper {
             ArrayNode commandsArray = rootNode.path(COMMANDS).asArray();
             List<String> commandsResult = extractCommandsFromCommandsArray(commandsArray);
             return new UpdatedIssue(issueId, commandsResult, updatedIssueUrl + issueId);
+        });
+    }
+
+    static UpdatedText updatedText(String responseBody, String updatedIssueUrl) {
+        return read(responseBody, rootNode -> {
+            String issueId = rootNode.path(ID_READABLE).stringValue();
+            if (null == issueId) {
+                throw new UnexpectedResponseException("Required property \"" + ID_READABLE + "\" has a null value.");
+            }
+            return new UpdatedText(issueId, updatedIssueUrl + issueId);
         });
     }
 

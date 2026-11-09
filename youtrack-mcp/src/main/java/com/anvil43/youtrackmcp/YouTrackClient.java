@@ -11,6 +11,7 @@ import com.anvil43.youtrackmcp.model.Issue;
 import com.anvil43.youtrackmcp.model.IssueSummary;
 import com.anvil43.youtrackmcp.model.Project;
 import com.anvil43.youtrackmcp.model.UpdatedIssue;
+import com.anvil43.youtrackmcp.model.UpdatedText;
 
 import java.util.List;
 
@@ -102,5 +103,24 @@ public interface YouTrackClient {
      * @throws NullPointerException if {@code issueId} or {@code command} is null
      */
     UpdatedIssue updateIssue(String issueId, String command);
+
+    /**
+     * Replaces an issue's summary, its description, or both. A part passed as {@code null} is
+     * left out of the request, and YouTrack leaves it as it is.
+     *
+     * @param issueId a readable issue ID such as {@code ABC-123}; YouTrack matches it case-insensitively
+     * @param summary the new summary, sent as given, or {@code null} to keep the current one
+     * @param description the new description in Markdown, sent as given and replacing the whole
+     *        old one, or {@code null} to keep the current one
+     * @return the issue ID as YouTrack returned it and a link to the issue; never null
+     * @throws IssueNotFoundException no issue has this ID, or the token can't see it
+     * @throws RequestRejectedException YouTrack rejected the change; {@code detail()} says why
+     * @throws YouTrackAuthException the token is invalid or lacks access
+     * @throws YouTrackUnavailableException YouTrack couldn't be reached or answered unexpectedly;
+     *         the request may already have been applied
+     * @throws NullPointerException if {@code issueId} is null
+     * @throws IllegalArgumentException if {@code summary} and {@code description} are both null
+     */
+    UpdatedText updateSummaryAndDescription(String issueId, String summary, String description);
 
 }

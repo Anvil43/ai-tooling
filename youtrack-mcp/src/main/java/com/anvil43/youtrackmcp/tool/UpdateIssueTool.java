@@ -39,7 +39,7 @@ public class UpdateIssueTool {
             }
         """;
     private static final String DESCRIPTION = """
-        Changes a YouTrack issue by applying a command, the same text as in YouTrack's command dialog: for example "State In Progress", "Assignee me", "Priority Major", "tag Release" or "subtask of ABC-1". One command can set several fields. Use the field names and values that get_issue shows; if you're not sure a value exists, ask the user rather than guessing. Use search_issues to find IDs.""";
+        Changes a YouTrack issue by applying a command, the same text as in YouTrack's command dialog: for example "State In Progress", "Assignee me", "Priority Major", "tag Release" or "subtask of ABC-1". One command can set several fields. Use the field names and values that get_issue shows; if you're not sure a value exists, ask the user rather than guessing. Use search_issues to find IDs. To change the summary or description, use update_summary_and_description.""";
 
     private static final Logger LOGGER = LoggerFactory.getLogger(UpdateIssueTool.class);
 

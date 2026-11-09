@@ -1,0 +1,1 @@
+{"error":"invalid_properties","error_description":"Property Issue.summary is invalid","error_children":[{"error":"Issue.summary-is-invalid","error_description":"Property Issue.summary is invalid","error_developer_message":"Value for summary is required","error_field":"summary"}]}

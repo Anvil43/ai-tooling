@@ -47,7 +47,8 @@ class UpdateIssueToolTest {
                         + "dialog: for example \"State In Progress\", \"Assignee me\", \"Priority Major\", "
                         + "\"tag Release\" or \"subtask of ABC-1\". One command can set several fields. Use the field names and values "
                         + "that get_issue shows; if you're not sure a value exists, ask the user rather than "
-                        + "guessing. Use search_issues to find IDs.");
+                        + "guessing. Use search_issues to find IDs. To change the summary or description, use "
+                        + "update_summary_and_description.");
     }
 
     @Test

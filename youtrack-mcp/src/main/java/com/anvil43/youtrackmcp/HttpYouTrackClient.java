@@ -12,9 +12,9 @@ import com.anvil43.youtrackmcp.model.Issue;
 import com.anvil43.youtrackmcp.model.IssueSummary;
 import com.anvil43.youtrackmcp.model.Project;
 import com.anvil43.youtrackmcp.model.UpdatedIssue;
+import com.anvil43.youtrackmcp.model.UpdatedText;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
@@ -49,6 +49,7 @@ public class HttpYouTrackClient implements YouTrackClient {
     private static final String URI_CREATE_ISSUE = "/api/issues?fields=idReadable,summary";
     private static final String URI_ADD_COMMENT = "/api/issues/%s/comments?fields=id,issue(idReadable)";
     private static final String URI_UPDATE_ISSUE = "/api/commands?fields=commands(description,error),issues(idReadable)";
+    private static final String URI_UPDATE_SUMMARY_AND_DESCRIPTION = "/api/issues/%s?fields=idReadable";
     private static final String URI_ISSUE_PATH = "/issue/";
 
     private final YouTrackConfig config;
@@ -197,6 +198,53 @@ public class HttpYouTrackClient implements YouTrackClient {
         UpdatedIssue updatedIssue = map(() -> YouTrackResponseMapper.updatedIssue(responseBody, config.baseUrl() + URI_ISSUE_PATH));
         LOGGER.info("Updated issue {}.", updatedIssue.issueId());
         return updatedIssue;
+    }
+
+    @Override
+    public UpdatedText updateSummaryAndDescription(String issueId, String summary, String description) {
+        if (null == issueId) {
+            throw new NullPointerException("Issue id cannot be null.");
+        }
+        if ((null == summary) && (null == description)) {
+            throw new IllegalArgumentException("Summary and description cannot both be null.");
+        }
+        ObjectNode requestBody = JSON_MAPPER.createObjectNode();
+        if (null != summary) {
+            requestBody.put("summary", summary);
+        }
+        if (null != description) {
+            requestBody.put("description", description);
+        }
+        BodyPublisher bodyPublisher = BodyPublishers.ofString(JSON_MAPPER.writeValueAsString(requestBody));
+        HttpRequest request = requestBuilder(String.format(URI_UPDATE_SUMMARY_AND_DESCRIPTION, issueId)).header("Content-Type", "application/json").POST(bodyPublisher).build();
+        HttpResponse<String> response = sendRequest(request);
+        if (400 == response.statusCode()) {
+            RequestRejectedException requestRejectedException = new RequestRejectedException(map(() -> YouTrackResponseMapper.errorMessage(response.body())));
+            LOGGER.warn("Update to the summary or description of {} rejected.", issueId);
+            throw requestRejectedException;
+        }
+        if (404 == response.statusCode()) {
+            IssueNotFoundException exception = new IssueNotFoundException(issueId);
+            LOGGER.warn(exception.getMessage());
+            throw exception;
+        }
+        String responseBody = validateResponseAndExtractBody(response);
+        UpdatedText updatedText = map(() -> YouTrackResponseMapper.updatedText(
+            responseBody, config.baseUrl() + URI_ISSUE_PATH));
+        LOGGER.info("Updated the {} of {}.", changedParts(summary, description), updatedText.issueId());
+        return updatedText;
+    }
+
+    private static String changedParts(String summary, String description) {
+        if ((null != summary) && (null != description)) {
+            return "summary and description";
+        }
+        else if (null != summary) {
+            return "summary";
+        }
+        else {
+            return "description";
+        }
     }
 
     private <T> T map(Supplier<T> mapping) {

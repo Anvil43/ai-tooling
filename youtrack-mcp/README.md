@@ -18,6 +18,7 @@ logs.
 | `create_issue` | Creates an issue from a project key, a one-line summary and an optional Markdown description. | write |
 | `add_comment` | Adds a Markdown comment to an issue. | write |
 | `update_issue` | Applies a YouTrack command, the same text as in YouTrack's command dialog, such as `State In Progress Assignee me`. Lists what changed. | write |
+| `update_summary_and_description` | Replaces an issue's summary, description or both; whatever is left out stays as it is. The description is Markdown. | write |
 
 Some behaviour worth knowing:
 
@@ -29,8 +30,8 @@ Some behaviour worth knowing:
   tool says the change *may* have happened and how to check, so the model doesn't blindly retry
   and create duplicates.
 - **Not supported:** deleting anything, attachments, comment visibility, editing a description
-  after creation, and setting custom fields on create (set them afterwards with
-  `update_issue`).
+  in place (`update_summary_and_description` replaces it whole), and setting custom fields on
+  create (set them afterwards with `update_issue`).
 
 ## Requirements
 
@@ -106,7 +107,7 @@ With a launch wrapper:
 claude mcp add youtrack -- /path/to/youtrack-mcp.sh
 ```
 
-Then run `/mcp` in Claude Code to check that the server connected and lists its six tools. A
+Then run `/mcp` in Claude Code to check that the server connected and lists its seven tools. A
 stdio server inherits Claude Code's environment, so if you set the variables in your shell
 instead, start `claude` from that shell.
 
@@ -127,7 +128,8 @@ Let the read tools run freely and have the write tools ask first. In Claude Code
 ```
 
 The tool names follow the server name you registered (`youtrack` above). Leave
-`create_issue`, `add_comment` and `update_issue` out of the allow list. Also, at the permission
+`create_issue`, `add_comment`, `update_issue` and `update_summary_and_description` out of the allow
+list. Also, at the permission
 prompt, choosing "don't ask again" adds a tool to that list.
 
 ## Project keys

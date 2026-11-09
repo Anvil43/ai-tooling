@@ -6,6 +6,7 @@ import com.anvil43.youtrackmcp.tool.GetIssueTool;
 import com.anvil43.youtrackmcp.tool.ListProjectsTool;
 import com.anvil43.youtrackmcp.tool.SearchIssuesTool;
 import com.anvil43.youtrackmcp.tool.UpdateIssueTool;
+import com.anvil43.youtrackmcp.tool.UpdateSummaryAndDescriptionTool;
 import io.modelcontextprotocol.json.McpJsonDefaults;
 import io.modelcontextprotocol.server.McpServer;
 import io.modelcontextprotocol.server.McpSyncServer;
@@ -42,7 +43,8 @@ public class YouTrackMcpApplication {
                         new SearchIssuesTool(httpYouTrackClient).specification(),
                         new CreateIssueTool(httpYouTrackClient).specification(),
                         new AddCommentTool(httpYouTrackClient).specification(),
-                        new UpdateIssueTool(httpYouTrackClient).specification()
+                        new UpdateIssueTool(httpYouTrackClient).specification(),
+                        new UpdateSummaryAndDescriptionTool(httpYouTrackClient).specification()
                     ).build();
         }
         catch (Exception e) {

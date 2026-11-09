@@ -6,6 +6,7 @@ import com.anvil43.youtrackmcp.model.Issue;
 import com.anvil43.youtrackmcp.model.IssueSummary;
 import com.anvil43.youtrackmcp.model.Project;
 import com.anvil43.youtrackmcp.model.UpdatedIssue;
+import com.anvil43.youtrackmcp.model.UpdatedText;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -21,6 +22,7 @@ public final class FakeYouTrackClient implements YouTrackClient {
     private CreatedIssue createdIssue;
     private AddedComment addedComment;
     private UpdatedIssue updatedIssue;
+    private UpdatedText updatedText;
     private RuntimeException failure;
     private final List<String> calls = new ArrayList<>();
 
@@ -59,6 +61,12 @@ public final class FakeYouTrackClient implements YouTrackClient {
         return this;
     }
 
+    /** What {@code updateSummaryAndDescription} returns, whatever the arguments. */
+    public FakeYouTrackClient withUpdatedText(UpdatedText updatedText) {
+        this.updatedText = updatedText;
+        return this;
+    }
+
     /** Every call throws {@code failure} from now on. */
     public FakeYouTrackClient failingWith(RuntimeException failure) {
         this.failure = failure;
@@ -69,7 +77,8 @@ public final class FakeYouTrackClient implements YouTrackClient {
      * One entry per call, with its arguments: {@code "listProjects"},
      * {@code "searchIssues(\"project: DEMO\", 51)"}, {@code "getIssue(\"DEMO-1\")"},
      * {@code "createIssue(\"DEMO\", \"Summary\", null)"} (a null argument is written unquoted),
-     * {@code "addComment(\"DEMO-13\", \"Text\")"}, {@code "updateIssue(\"DEMO-13\", \"State Fixed\")"}.
+     * {@code "addComment(\"DEMO-13\", \"Text\")"}, {@code "updateIssue(\"DEMO-13\", \"State Fixed\")"},
+     * {@code "updateSummaryAndDescription(\"DEMO-13\", \"Summary\", null)"}.
      */
     public List<String> calls() {
         return List.copyOf(calls);
@@ -127,6 +136,16 @@ public final class FakeYouTrackClient implements YouTrackClient {
             throw new IllegalStateException("FakeYouTrackClient: no updated issue set up");
         }
         return updatedIssue;
+    }
+
+    @Override
+    public UpdatedText updateSummaryAndDescription(String issueId, String summary, String description) {
+        calls.add("updateSummaryAndDescription(" + quoted(issueId) + ", " + quoted(summary) + ", " + quoted(description) + ")");
+        throwIfFailing();
+        if (updatedText == null) {
+            throw new IllegalStateException("FakeYouTrackClient: no updated text set up");
+        }
+        return updatedText;
     }
 
     private static String quoted(String value) {

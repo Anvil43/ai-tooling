@@ -34,6 +34,7 @@ import com.anvil43.youtrackmcp.model.IssueLink;
 import com.anvil43.youtrackmcp.model.IssueSummary;
 import com.anvil43.youtrackmcp.model.Project;
 import com.anvil43.youtrackmcp.model.UpdatedIssue;
+import com.anvil43.youtrackmcp.model.UpdatedText;
 import com.anvil43.youtrackmcp.model.User;
 import com.github.tomakehurst.wiremock.http.Fault;
 import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
@@ -744,6 +745,233 @@ class HttpYouTrackClientTest {
                     .isInstanceOf(NullPointerException.class)
                     .message().containsIgnoringCase("command");
             assertThat(youTrack.getAllServeEvents()).isEmpty();
+        }
+    }
+
+    // --- updateSummaryAndDescription -----------------------------------------------------
+
+    /** Request, mapping, errors and logging for the one endpoint, kept together. */
+    @Nested
+    class UpdateSummaryAndDescription {
+
+        // --- request ---
+
+        @Test
+        void postsBothPartsWithTokenFieldsAndAJsonBody() {
+            stubText("DEMO-13", okJson(fixture("update-text.json")));
+
+            client.updateSummaryAndDescription("DEMO-13", "New summary", "New description");
+
+            youTrack.verify(postRequestedFor(urlPathEqualTo("/api/issues/DEMO-13"))
+                    .withHeader("Authorization", equalTo("Bearer " + TOKEN))
+                    .withHeader("Accept", equalTo("application/json"))
+                    .withHeader("Content-Type", containing("application/json"))
+                    .withQueryParam("fields", equalTo("idReadable"))
+                    .withRequestBody(equalToJson("""
+                            {"summary":"New summary","description":"New description"}""")));
+        }
+
+        @Test
+        void aNullDescriptionIsLeftOutOfTheBody() {
+            // Captured: a part missing from the body stays as it is.
+            stubText("DEMO-13", okJson(fixture("update-text.json")));
+
+            client.updateSummaryAndDescription("DEMO-13", "New summary", null);
+
+            youTrack.verify(postRequestedFor(urlPathEqualTo("/api/issues/DEMO-13")).withRequestBody(equalToJson("""
+                    {"summary":"New summary"}""")));
+        }
+
+        @Test
+        void aNullSummaryIsLeftOutOfTheBody() {
+            stubText("DEMO-13", okJson(fixture("update-text.json")));
+
+            client.updateSummaryAndDescription("DEMO-13", null, "New description");
+
+            youTrack.verify(postRequestedFor(urlPathEqualTo("/api/issues/DEMO-13")).withRequestBody(equalToJson("""
+                    {"description":"New description"}""")));
+        }
+
+        @Test
+        void sendsTheIdAsGiven() {
+            // Captured: YouTrack accepts a lowercase ID, so the client doesn't change the case.
+            stubText("demo-13", okJson(fixture("update-text.json")));
+
+            client.updateSummaryAndDescription("demo-13", "New summary", null);
+
+            youTrack.verify(postRequestedFor(urlPathEqualTo("/api/issues/demo-13")));
+        }
+
+        @Test
+        void escapesQuotesBackslashesAndLineBreaksInTheBody() {
+            stubText("DEMO-13", okJson(fixture("update-text.json")));
+
+            client.updateSummaryAndDescription("DEMO-13", "A \"quoted\" summary", "Line one\n\nLine \"two\"\r\nC:\\temp");
+
+            youTrack.verify(postRequestedFor(urlPathEqualTo("/api/issues/DEMO-13")).withRequestBody(equalToJson("""
+                    {"summary":"A \\"quoted\\" summary","description":"Line one\\n\\nLine \\"two\\"\\r\\nC:\\\\temp"}""")));
+        }
+
+        @Test
+        void nullIssueIdIsAProgrammingErrorAndSendsNoRequest() {
+            assertThatThrownBy(() -> client.updateSummaryAndDescription(null, "New summary", null))
+                    .isInstanceOf(NullPointerException.class)
+                    .message().containsIgnoringCase("issue");
+            assertThat(youTrack.getAllServeEvents()).isEmpty();
+        }
+
+        @Test
+        void bothPartsNullIsAProgrammingErrorAndSendsNoRequest() {
+            assertThatThrownBy(() -> client.updateSummaryAndDescription("DEMO-13", null, null))
+                    .isInstanceOf(IllegalArgumentException.class);
+            assertThat(youTrack.getAllServeEvents()).isEmpty();
+        }
+
+        // --- mapping ---
+
+        @Test
+        void mapsTheResultWithTheIssueLink() {
+            stubText("DEMO-13", okJson(fixture("update-text.json")));
+
+            UpdatedText updated = client.updateSummaryAndDescription("DEMO-13", "New summary", null);
+
+            assertThat(updated).isEqualTo(new UpdatedText("DEMO-13", youTrack.baseUrl() + "/issue/DEMO-13"));
+        }
+
+        @Test
+        void issueIdComesFromTheResponseNotTheArgument() {
+            stubText("demo-13", okJson(fixture("update-text.json")));
+
+            UpdatedText updated = client.updateSummaryAndDescription("demo-13", "New summary", null);
+
+            assertThat(updated.issueId()).isEqualTo("DEMO-13");
+            assertThat(updated.url()).endsWith("/issue/DEMO-13");
+        }
+
+        @Test
+        void linkKeepsAPathPrefixAndDropsATrailingSlash() {
+            youTrack.stubFor(post(urlPathEqualTo("/youtrack/api/issues/DEMO-13")).willReturn(okJson(fixture("update-text.json"))));
+
+            UpdatedText updated = clientFor(youTrack.baseUrl() + "/youtrack/")
+                    .updateSummaryAndDescription("DEMO-13", "New summary", null);
+
+            assertThat(updated.url()).isEqualTo(youTrack.baseUrl() + "/youtrack/issue/DEMO-13");
+        }
+
+        @ParameterizedTest
+        @ValueSource(strings = {"{\"$type\":\"Issue\"}", "{\"idReadable\":null,\"$type\":\"Issue\"}", "[]"})
+        void responseWithoutTheIssueIdIsUnavailable(String body) {
+            stubText("DEMO-13", okJson(body));
+
+            assertThatThrownBy(() -> client.updateSummaryAndDescription("DEMO-13", "New summary", null))
+                    .isInstanceOf(YouTrackUnavailableException.class);
+        }
+
+        // --- errors ---
+
+        @Test
+        void unknownIssueIsNotFoundAndCarriesTheId() {
+            // Captured: unlike commands, this endpoint answers 404.
+            stubText("DEMO-99999", errorJson(404, fixture("error-404.json")));
+
+            Throwable thrown = catchThrowable(() -> client.updateSummaryAndDescription("DEMO-99999", "New summary", null));
+
+            assertThat(thrown).isInstanceOf(IssueNotFoundException.class);
+            assertThat(((IssueNotFoundException) thrown).issueId()).isEqualTo("DEMO-99999");
+        }
+
+        @Test
+        void rejectionCarriesYouTracksTopLevelDescription() {
+            // Captured with an empty summary; the tool's blank check normally stops this first.
+            stubText("DEMO-13", errorJson(400, fixture("error-400-update-text-summary.json")));
+
+            Throwable thrown = catchThrowable(() -> client.updateSummaryAndDescription("DEMO-13", "", null));
+
+            assertThat(thrown).isInstanceOf(RequestRejectedException.class);
+            assertThat(((RequestRejectedException) thrown).detail()).isEqualTo("Property Issue.summary is invalid");
+        }
+
+        @ParameterizedTest
+        @ValueSource(strings = {"<html><body>400 Bad Request</body></html>", "{\"error\":\"bad_request\"}"})
+        void badRequestWithoutAnErrorDescriptionIsUnavailable(String body) {
+            stubText("DEMO-13", aResponse().withStatus(400).withBody(body));
+
+            assertThatThrownBy(() -> client.updateSummaryAndDescription("DEMO-13", "New summary", null))
+                    .isInstanceOf(YouTrackUnavailableException.class);
+        }
+
+        @ParameterizedTest
+        @ValueSource(ints = {401, 403})
+        void rejectedTokenIsAnAuthFailure(int status) {
+            stubText("DEMO-13", errorJson(status, fixture("error-401.json")));
+
+            assertThatThrownBy(() -> client.updateSummaryAndDescription("DEMO-13", "New summary", null))
+                    .isInstanceOf(YouTrackAuthException.class);
+        }
+
+        @Test
+        void serverErrorIsUnavailable() {
+            stubText("DEMO-13", errorJson(503, "<html>Service Unavailable</html>"));
+
+            assertThatThrownBy(() -> client.updateSummaryAndDescription("DEMO-13", "New summary", null))
+                    .isInstanceOf(YouTrackUnavailableException.class);
+        }
+
+        @Test
+        void connectionFailureIsUnavailableWithTheCause() {
+            stubText("DEMO-13", aResponse().withFault(Fault.CONNECTION_RESET_BY_PEER));
+
+            Throwable thrown = catchThrowable(() -> client.updateSummaryAndDescription("DEMO-13", "New summary", null));
+
+            assertThat(thrown).isInstanceOf(YouTrackUnavailableException.class);
+            assertThat(thrown.getCause()).isNotNull();
+        }
+
+        // --- logging ---
+
+        @ParameterizedTest
+        @CsvSource(delimiter = '|', nullValues = "null", value = {
+                "Secret summary | null               | updated the summary of DEMO-13.",
+                "null           | Secret description | updated the description of DEMO-13.",
+                "Secret summary | Secret description | updated the summary and description of DEMO-13."})
+        void successLogsThePartsAndIssueAtInfoButNeverTheText(String summary, String description, String expected) {
+            stubText("DEMO-13", okJson(fixture("update-text.json")));
+
+            client.updateSummaryAndDescription("DEMO-13", summary, description);
+
+            assertThat(log.list).singleElement().satisfies(event -> {
+                assertThat(event.getLevel()).isEqualTo(Level.INFO);
+                assertThat(event.getFormattedMessage()).containsIgnoringCase(expected).doesNotContain("Secret");
+            });
+        }
+
+        @Test
+        void rejectionLogsOneWarningNamingTheIssueButNotYouTracksDetail() {
+            // Not every 400 from this endpoint has been seen, and one might echo the text sent.
+            stubText("DEMO-13", errorJson(400,
+                    "{\"error\":\"invalid_properties\",\"error_description\":\"Secret summary is invalid\"}"));
+
+            catchThrowable(() -> client.updateSummaryAndDescription("DEMO-13", "Secret summary", null));
+
+            assertThat(log.list).singleElement().satisfies(event -> {
+                assertThat(event.getLevel()).isEqualTo(Level.WARN);
+                assertThat(event.getThrowableProxy()).isNull();
+                assertThat(event.getFormattedMessage()).containsIgnoringCase("rejected")
+                        .contains("DEMO-13").doesNotContain("Secret");
+            });
+        }
+
+        @Test
+        void unknownIssueLogsOneWarningWithoutAStackTraceOrTheText() {
+            stubText("DEMO-99999", errorJson(404, fixture("error-404.json")));
+
+            catchThrowable(() -> client.updateSummaryAndDescription("DEMO-99999", "Secret summary", null));
+
+            assertThat(log.list).singleElement().satisfies(event -> {
+                assertThat(event.getLevel()).isEqualTo(Level.WARN);
+                assertThat(event.getThrowableProxy()).isNull();
+                assertThat(event.getFormattedMessage()).doesNotContain("Secret");
+            });
         }
     }
 
@@ -1489,6 +1717,10 @@ class HttpYouTrackClientTest {
 
     private static void stubComment(String issueId, com.github.tomakehurst.wiremock.client.ResponseDefinitionBuilder response) {
         youTrack.stubFor(post(urlPathEqualTo("/api/issues/" + issueId + "/comments")).willReturn(response));
+    }
+
+    private static void stubText(String issueId, com.github.tomakehurst.wiremock.client.ResponseDefinitionBuilder response) {
+        youTrack.stubFor(post(urlPathEqualTo("/api/issues/" + issueId)).willReturn(response));
     }
 
     private static void stubUpdate(com.github.tomakehurst.wiremock.client.ResponseDefinitionBuilder response) {

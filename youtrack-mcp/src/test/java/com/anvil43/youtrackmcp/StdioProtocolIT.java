@@ -98,7 +98,7 @@ class StdioProtocolIT {
         tools.forEach(tool -> names.add(tool.path("name").asString()));
         // Add each tool here as it is registered.
         assertThat(names).containsExactlyInAnyOrder("list_projects", "search_issues", "get_issue", "create_issue", "add_comment",
-                "update_issue");
+                "update_issue", "update_summary_and_description");
     }
 
     @Test
@@ -123,7 +123,7 @@ class StdioProtocolIT {
 
     @ParameterizedTest
     @CsvSource({"search_issues, query", "get_issue, issueId", "create_issue, project", "add_comment, issueId",
-            "update_issue, issueId"})
+            "update_issue, issueId", "update_summary_and_description, issueId"})
     void sdkRejectsAMissingRequiredArgument(String toolName, String argumentName) throws Exception {
         server = ServerProcess.start(validEnvironment());
         server.initialize();
